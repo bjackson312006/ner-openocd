@@ -134,6 +134,7 @@ jobs:
             mingw-w64-x86_64-libusb
             mingw-w64-x86_64-hidapi
             texinfo
+            zip
       
       - name: Checkout ST OpenOCD
         uses: actions/checkout@v4
