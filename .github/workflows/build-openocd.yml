@@ -46,7 +46,7 @@ jobs:
           path: openocd-stm32-linux-x64.tar.gz
 
   build-macos-x64:
-    runs-on: macos-12  # Intel Mac
+    runs-on: macos-13  # Intel Mac
     steps:
       - name: Install dependencies
         run: |
