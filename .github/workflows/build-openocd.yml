@@ -1,0 +1,166 @@
+# .github/workflows/build-openocd.yml
+name: Build OpenOCD for All Platforms
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'tools-v*'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential autoconf automake libtool \
+            pkg-config libusb-1.0-0-dev libhidapi-dev
+      
+      - name: Checkout ST OpenOCD
+        uses: actions/checkout@v3
+        with:
+          repository: STMicroelectronics/OpenOCD
+          ref: master
+      
+      - name: Build
+        run: |
+          ./bootstrap
+          ./configure --prefix=$PWD/install
+          make -j$(nproc)
+          make install
+      
+      - name: Package
+        run: |
+          cd install
+          tar czf ../openocd-stm32-linux-x64.tar.gz .
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: openocd-linux-x64
+          path: openocd-stm32-linux-x64.tar.gz
+
+  build-macos-x64:
+    runs-on: macos-12  # Intel Mac
+    steps:
+      - name: Install dependencies
+        run: |
+          brew install autoconf automake libtool pkg-config libusb hidapi
+      
+      - name: Checkout ST OpenOCD
+        uses: actions/checkout@v3
+        with:
+          repository: STMicroelectronics/OpenOCD
+          ref: master
+      
+      - name: Build
+        run: |
+          ./bootstrap
+          ./configure --prefix=$PWD/install
+          make -j$(sysctl -n hw.ncpu)
+          make install
+      
+      - name: Package
+        run: |
+          cd install
+          tar czf ../openocd-stm32-macos-x64.tar.gz .
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: openocd-macos-x64
+          path: openocd-stm32-macos-x64.tar.gz
+
+  build-macos-arm64:
+    runs-on: macos-14  # Apple Silicon Mac
+    steps:
+      - name: Install dependencies
+        run: |
+          brew install autoconf automake libtool pkg-config libusb hidapi
+      
+      - name: Checkout ST OpenOCD
+        uses: actions/checkout@v3
+        with:
+          repository: STMicroelectronics/OpenOCD
+          ref: master
+      
+      - name: Build
+        run: |
+          ./bootstrap
+          ./configure --prefix=$PWD/install
+          make -j$(sysctl -n hw.ncpu)
+          make install
+      
+      - name: Package
+        run: |
+          cd install
+          tar czf ../openocd-stm32-macos-arm64.tar.gz .
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: openocd-macos-arm64
+          path: openocd-stm32-macos-arm64.tar.gz
+
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            base-devel
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-autotools
+            mingw-w64-x86_64-libusb
+            mingw-w64-x86_64-hidapi
+      
+      - name: Checkout ST OpenOCD
+        uses: actions/checkout@v3
+        with:
+          repository: STMicroelectronics/OpenOCD
+          ref: master
+      
+      - name: Build
+        run: |
+          ./bootstrap
+          ./configure --prefix=$PWD/install
+          make -j$(nproc)
+          make install
+      
+      - name: Package
+        run: |
+          cd install
+          zip -r ../openocd-stm32-windows-x64.zip .
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: openocd-windows-x64
+          path: openocd-stm32-windows-x64.zip
+
+  create-release:
+    needs: [build-linux, build-macos-x64, build-macos-arm64, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/tools-v')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            openocd-linux-x64/openocd-stm32-linux-x64.tar.gz
+            openocd-macos-x64/openocd-stm32-macos-x64.tar.gz
+            openocd-macos-arm64/openocd-stm32-macos-arm64.tar.gz
+            openocd-windows-x64/openocd-stm32-windows-x64.zip
+          draft: false
+          prerelease: false
