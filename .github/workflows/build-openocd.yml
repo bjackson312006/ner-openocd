@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: openocd-linux-x64
-          path: openocd-linux-x64
+          path: dist/openocd-linux-x64
 
   build-macos-x64:
     runs-on: macos-13  # Intel Mac
@@ -82,7 +82,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: openocd-macos-x64
-          path: openocd-macos-x64
+          path: dist/openocd-macos-x64
 
   build-macos-arm64:
     runs-on: macos-14  # Apple Silicon Mac
@@ -117,7 +117,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: openocd-macos-arm64
-          path: openocd-macos-arm64
+          path: dist/openocd-macos-arm64
 
   build-windows:
     runs-on: windows-latest
@@ -166,10 +166,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: openocd-windows-x64
-          path: openocd-windows-x64
+          path: dist/openocd-windows-x64
 
   create-release:
-    needs: [build-linux, build-macos-x64, build-macos-arm64, build-windows]
+    needs: [build-linux, build-macos-x64, build-macos-arm64]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/tools-v')
     steps:
@@ -185,6 +185,5 @@ jobs:
             artifacts/openocd-linux-x64/openocd-linux-x64
             artifacts/openocd-macos-x64/openocd-macos-x64
             artifacts/openocd-macos-arm64/openocd-macos-arm64
-            artifacts/openocd-windows-x64/openocd-windows-x64
           draft: false
           prerelease: false
