@@ -182,9 +182,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/openocd-linux-x64/openocd-stm32-linux-x64
-            artifacts/openocd-macos-x64/openocd-stm32-macos-x64
-            artifacts/openocd-macos-arm64/openocd-stm32-macos-arm64
-            artifacts/openocd-windows-x64/openocd-stm32-windows-x64
+            artifacts/openocd-linux-x64/openocd-linux-x64
+            artifacts/openocd-macos-x64/openocd-macos-x64
+            artifacts/openocd-macos-arm64/openocd-macos-arm64
+            artifacts/openocd-windows-x64/openocd-windows-x64
           draft: false
           prerelease: false
