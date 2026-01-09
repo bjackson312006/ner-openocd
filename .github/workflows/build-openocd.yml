@@ -19,7 +19,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential autoconf automake libtool \
-            pkg-config libusb-1.0-0-dev libhidapi-dev texinfo
+            pkg-config libusb-1.0-0-dev libhidapi-dev texinfo rpm alien
       
       - name: Checkout ST OpenOCD
         uses: actions/checkout@v4
@@ -34,20 +34,63 @@ jobs:
       - name: Build
         run: |
           ./bootstrap
-          ./configure --prefix=$PWD/dist --disable-werror
+          ./configure --prefix=/usr --disable-werror
           make -j$(nproc)
-          make install
+          make DESTDIR=$PWD/dist install
       
-      - name: Package
+      - name: Create tarball
         run: |
           cd dist
-          mv bin/openocd openocd-linux-x64
+          tar czf ../openocd-stm32-linux-x64.tar.gz usr/
       
-      - name: Upload artifact
+      - name: Create RPM package
+        run: |
+          mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          
+          # Create RPM spec file
+          cat > rpmbuild/SPECS/openocd-stm32.spec <<'EOF'
+          Name:           openocd-stm32
+          Version:        0.12.0
+          Release:        1%{?dist}
+          Summary:        STMicroelectronics fork of OpenOCD
+          License:        GPLv2+
+          URL:            https://github.com/STMicroelectronics/OpenOCD
+          
+          Requires:       libusb hidapi
+          
+          %description
+          OpenOCD - Open On-Chip Debugger
+          STMicroelectronics customized version with enhanced STM32 support.
+          
+          %install
+          cp -a %{_sourcedir}/dist/usr %{buildroot}/
+          
+          %files
+          /usr/bin/openocd
+          /usr/share/openocd/
+          /usr/share/info/*
+          /usr/share/man/man1/openocd.1*
+          EOF
+          
+          cp -r dist rpmbuild/SOURCES/
+          rpmbuild --define "_topdir $PWD/rpmbuild" -bb rpmbuild/SPECS/openocd-stm32.spec
+      
+      - name: Convert RPM to DEB using alien
+        run: |
+          sudo alien -d -k rpmbuild/RPMS/x86_64/*.rpm
+          mv openocd-stm32_*.deb openocd-stm32-linux-x64.deb
+      
+      - name: Upload tarball artifact
         uses: actions/upload-artifact@v4
         with:
-          name: openocd-linux-x64
-          path: dist/openocd-linux-x64
+          name: openocd-stm32-linux-x64-tar
+          path: openocd-stm32-linux-x64.tar.gz
+      
+      - name: Upload deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openocd-stm32-linux-x64-deb
+          path: openocd-stm32-linux-x64.deb
 
   build-macos-x64:
     runs-on: macos-13  # Intel Mac
@@ -69,20 +112,20 @@ jobs:
       - name: Build
         run: |
           ./bootstrap
-          ./configure --prefix=$PWD/dist --disable-werror
+          ./configure --prefix=/usr/local --disable-werror
           make -j$(sysctl -n hw.ncpu)
-          make install
+          make DESTDIR=$PWD/dist install
       
-      - name: Package
+      - name: Create tarball
         run: |
           cd dist
-          mv bin/openocd openocd-macos-x64
+          tar czf ../openocd-stm32-macos-x64.tar.gz usr/
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: openocd-macos-x64
-          path: dist/openocd-macos-x64
+          name: openocd-stm32-macos-x64
+          path: openocd-stm32-macos-x64.tar.gz
 
   build-macos-arm64:
     runs-on: macos-14  # Apple Silicon Mac
@@ -104,20 +147,20 @@ jobs:
       - name: Build
         run: |
           ./bootstrap
-          ./configure --prefix=$PWD/dist --disable-werror
+          ./configure --prefix=/usr/local --disable-werror
           make -j$(sysctl -n hw.ncpu)
-          make install
+          make DESTDIR=$PWD/dist install
       
-      - name: Package
+      - name: Create tarball
         run: |
           cd dist
-          mv bin/openocd openocd-macos-arm64
+          tar czf ../openocd-stm32-macos-arm64.tar.gz usr/
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: openocd-macos-arm64
-          path: dist/openocd-macos-arm64
+          name: openocd-stm32-macos-arm64
+          path: openocd-stm32-macos-arm64.tar.gz
 
   build-windows:
     runs-on: windows-latest
@@ -138,7 +181,7 @@ jobs:
             mingw-w64-x86_64-libusb
             mingw-w64-x86_64-hidapi
             texinfo
-            zip
+            tar
       
       - name: Checkout ST OpenOCD
         uses: actions/checkout@v4
@@ -153,23 +196,23 @@ jobs:
       - name: Build
         run: |
           ./bootstrap
-          ./configure --prefix=$PWD/dist --disable-werror
+          ./configure --prefix=/mingw64 --disable-werror
           make -j$(nproc)
-          make install
+          make DESTDIR=$PWD/dist install
       
-      - name: Package
+      - name: Create zip archive
         run: |
           cd dist
-          mv bin/openocd openocd-windows-x64
+          tar czf ../openocd-stm32-windows-x64.tar.gz mingw64/
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: openocd-windows-x64
-          path: dist/openocd-windows-x64
+          name: openocd-stm32-windows-x64
+          path: openocd-stm32-windows-x64.tar.gz
 
   create-release:
-    needs: [build-linux, build-macos-x64, build-macos-arm64]
+    needs: [build-linux, build-macos-x64, build-macos-arm64] # technically we dont need windows
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/tools-v')
     steps:
@@ -182,8 +225,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/openocd-linux-x64/openocd-linux-x64
-            artifacts/openocd-macos-x64/openocd-macos-x64
-            artifacts/openocd-macos-arm64/openocd-macos-arm64
+            artifacts/openocd-stm32-linux-x64-tar/openocd-stm32-linux-x64.tar.gz
+            artifacts/openocd-stm32-linux-x64-deb/openocd-stm32-linux-x64.deb
+            artifacts/openocd-stm32-macos-x64/openocd-stm32-macos-x64.tar.gz
+            artifacts/openocd-stm32-macos-arm64/openocd-stm32-macos-arm64.tar.gz
           draft: false
           prerelease: false
