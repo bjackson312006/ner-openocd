@@ -93,7 +93,7 @@ jobs:
           path: openocd-stm32-linux-x64.deb
 
   build-macos-x64:
-    runs-on: macos-13  # Intel Mac
+    runs-on: macos-15-intel  # macos-13 got depriciated
     steps:
       - name: Install dependencies
         run: |
@@ -162,54 +162,54 @@ jobs:
           name: openocd-stm32-macos-arm64
           path: openocd-stm32-macos-arm64.tar.gz
 
-  build-windows:
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: msys2 {0}
-    steps:
-      - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: >-
-            git
-            base-devel
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-autotools
-            mingw-w64-x86_64-libusb
-            mingw-w64-x86_64-hidapi
-            texinfo
-            tar
+  # build-windows:
+  #   runs-on: windows-latest
+  #   defaults:
+  #     run:
+  #       shell: msys2 {0}
+  #   steps:
+  #     - name: Setup MSYS2
+  #       uses: msys2/setup-msys2@v2
+  #       with:
+  #         msystem: MINGW64
+  #         update: true
+  #         install: >-
+  #           git
+  #           base-devel
+  #           mingw-w64-x86_64-toolchain
+  #           mingw-w64-x86_64-autotools
+  #           mingw-w64-x86_64-libusb
+  #           mingw-w64-x86_64-hidapi
+  #           texinfo
+  #           tar
       
-      - name: Checkout ST OpenOCD
-        uses: actions/checkout@v4
-        with:
-          repository: STMicroelectronics/OpenOCD
-          ref: openocd-cubeide-r6
+  #     - name: Checkout ST OpenOCD
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: STMicroelectronics/OpenOCD
+  #         ref: openocd-cubeide-r6
       
-      - name: Clean up any stale git locks
-        run: |
-          rm -f .git/index.lock
+  #     - name: Clean up any stale git locks
+  #       run: |
+  #         rm -f .git/index.lock
       
-      - name: Build
-        run: |
-          ./bootstrap
-          ./configure --prefix=/mingw64 --disable-werror
-          make -j$(nproc)
-          make DESTDIR=$PWD/dist install
+  #     - name: Build
+  #       run: |
+  #         ./bootstrap
+  #         ./configure --prefix=/mingw64 --disable-werror
+  #         make -j$(nproc)
+  #         make DESTDIR=$PWD/dist install
       
-      - name: Create zip archive
-        run: |
-          cd dist
-          tar czf ../openocd-stm32-windows-x64.tar.gz mingw64/
+  #     - name: Create zip archive
+  #       run: |
+  #         cd dist
+  #         tar czf ../openocd-stm32-windows-x64.tar.gz mingw64/
       
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: openocd-stm32-windows-x64
-          path: openocd-stm32-windows-x64.tar.gz
+  #     - name: Upload artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: openocd-stm32-windows-x64
+  #         path: openocd-stm32-windows-x64.tar.gz
 
   create-release:
     needs: [build-linux, build-macos-x64, build-macos-arm64] # technically we dont need windows
